@@ -75,10 +75,10 @@ public class Hash
      *              The size of the hash table
      * @return true if insertion is successful and false if otherwise
      */
-    public boolean insert(String s) {
+    public boolean insert(String key) throws IllegalArgumentException{
         //If the string to add is null, then throw an illegal argument exception
-        if(s == null) {
-            throw new IllegalArgumentException();
+        if(key == null) {
+            throw new IllegalArgumentException("Data can't be null");
         }
         
         //If the hash table is half full, then before another insertion,
@@ -89,7 +89,7 @@ public class Hash
         
         
         //determine the index for placement based on the given string to add
-        int home = h(s, capacity);
+        int home = h(key, capacity); 
         int pos = home;
         int offset = 1;
         int firstTombstone = -1;
@@ -99,7 +99,7 @@ public class Hash
             if(handles[pos].isTombstone() && firstTombstone == -1) {
                 firstTombstone = pos;
             }
-            else if(isDuplicate(handles[pos],s)) {
+            else if(isDuplicate(handles[pos],key)) { 
                 return false;
             }
             pos = (home + offset*offset) % capacity;
@@ -107,7 +107,7 @@ public class Hash
         }
         
         //convert string to array of bytes to insert to MemManager
-        byte[] strBytes = s.getBytes();
+        byte[] strBytes = key.getBytes();
         handles[pos] = manager.insert(strBytes);
         size++;
         return true;
@@ -115,7 +115,8 @@ public class Hash
     
     
     //find method
-//    public boolean search(Key k, Elem e) {
+//    public String search(Key k, Elem e) {
+            //use get record from the memory manager to recover the string 
 //        return false;
 //    }
     
@@ -141,11 +142,25 @@ public class Hash
     //print method
     
     //delete method - will use tombstones
+    /**
+     * @param key
+     *          The string we are looking to remove from the hash table
+     * 
+     * @return true if successful deletion and false otherwise
+     */
+    public boolean delete(String key) {
+        //search for the "key" or string to delete
+            //continue searching until null is found cuz could come across tombstone
+        
+        //if not found --> return false
+        //if found --> create tombstone over the key that was once there and return true
+        return false;
+    }
     
     //check for duplication method
-    public boolean isDuplicate(MemHandle handle, String s) {
+    public boolean isDuplicate(MemHandle handle, String key) {
         byte[] data = manager.getRecord(handle);
         String check = data.toString();
-        return check.equals(s);
+        return check.equals(key);
     }
 }
