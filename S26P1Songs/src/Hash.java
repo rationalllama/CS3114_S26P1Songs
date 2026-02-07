@@ -2,7 +2,9 @@ import java.util.LinkedList;
 
 /**
  * Implement a hash table.
- * This class is a hash table of handles that hold strings
+ * This class is a hash table of MemHandles, which point to strings 
+ * stored in the MemManager. The hash table itself never stores 
+ * the actual strings.
  * Data: Strings
  * Hash function: sfold
  * 
@@ -17,12 +19,22 @@ import java.util.LinkedList;
 
 public class Hash
 {
-    private MemHandle[] handles; //the table of nodes that reference the stored strings
-    private int capacity; //Size of table
-    private MemManager manager; //
-    private int size; //Number of handles stored
-    
-    
+    /** Array of handles stored in the hash table. */
+    private MemHandle[] handles;
+
+    /** Current capacity of the table (always a power of 2). 
+     * If m is not a power of 2, quadratic probing can get 
+     * stuck in a loop and never check the entire table.
+    */
+    private int capacity;
+
+    /** Memory manager that stores the actual string bytes. */
+    private MemManager manager;
+
+    /** Number of active (non-tombstone) elements stored. */
+    private int size;
+
+
     
     /**
      * Create a new Hash object.
@@ -46,6 +58,7 @@ public class Hash
     /**
      * Compute the hash function. Uses the "sfold" method from the OpenDSA
      * module on hash functions
+     * Breaks the string into 4-byte chunks and folds them into a long.
      *
      * @param s
      *            The string that we are hashing
@@ -78,11 +91,13 @@ public class Hash
     public boolean insert(String key) throws IllegalArgumentException{
         //If the string to add is null, then throw an illegal argument exception
         if(key == null) {
-            throw new IllegalArgumentException("Data can't be null");
+            throw new IllegalArgumentException("Input strings cannot be null or empty");
         }
         
-        //If the hash table is half full, then before another insertion,
-        //resize the table first
+        // If the hash table is half full, then before another insertion,
+        // resize the table first
+        // must be done before insertion because if we insert first, 
+        // then we will be over capacity and won't be able to resize
         if(size + 1 > capacity/2) {
             resize();
         }
@@ -94,21 +109,27 @@ public class Hash
         int offset = 1;
         int firstTombstone = -1;
         
-        
+        // this slot is occupied, so we need to check for duplicates and find the next open slot using quadratic probing
         while(handles[pos] != null) {
-            if(handles[pos].isTombstone() && firstTombstone == -1) {
+            // if we come across a tombstone, we want to save that index for possible insertion
+            if(handles[pos].isTombstone()) {
                 firstTombstone = pos;
             }
             else if(isDuplicate(handles[pos],key)) { 
                 return false;
             }
+            // quadratic probing
             pos = (home + offset*offset) % capacity;
             offset++;
         }
         
-        //convert string to array of bytes to insert to MemManager
-        byte[] strBytes = key.getBytes();
-        handles[pos] = manager.insert(strBytes);
+        // Use the tombstone if one was found; otherwise use the first empty slot.
+        int insertPos = (firstTombstone != -1) ? firstTombstone : pos;
+
+        // Convert string to bytes and store in memory manager
+        byte[] bytes = key.getBytes();
+        handles[insertPos] = manager.insert(bytes);
+
         size++;
         return true;
     }
@@ -121,23 +142,32 @@ public class Hash
 //    }
     
     /**
-     * Resizes the hash table to double the size when the
-     * current one is half full
+     * Resizes the hash table by doubling its capacity.
+     * All non-tombstone elements are reinserted into the new table.
+     * Required because quadratic probing depends on table size.
      * 
-     * @return
+     * Resizing at half-full keeps performance predictable, prevents
+     * infinite loops during probing.
      */
-    public void resize() {
-        //double the capacity of the hash table and create a new hash table of doubled size
+    private void resize() {
+        int oldCapacity = capacity;
         capacity *= 2;
-        MemHandle[] newHandles = new MemHandle[this.capacity];
-        
-        //copy the old hash table over to the new one and set this hash table to the new hash table created
-        for(int i = 0; i < capacity/2; i++) {
-            newHandles[i] = handles[i];
+
+        MemHandle[] oldHandles = handles;
+        handles = new MemHandle[capacity];
+        size = 0; // reinserting will rebuild size
+
+        // Reinsert all valid records
+        for (int i = 0; i < oldCapacity; i++) {
+            // Only reinsert if it's not null and not a tombstone
+            if (oldHandles[i] != null && !oldHandles[i].isTombstone()) {
+                byte[] data = manager.getRecord(oldHandles[i]);
+                String s = new String(data);
+                insert(s);
+            }
         }
-        handles = newHandles;
-        
     }
+
     
     //print method
     
@@ -157,10 +187,16 @@ public class Hash
         return false;
     }
     
-    //check for duplication method
-    public boolean isDuplicate(MemHandle handle, String key) {
+    /**
+     * Checks whether a handle corresponds to the given key.
+     *
+     * @param handle the handle to compare
+     * @param key    the string to compare against
+     * @return true if they match
+     */
+    private boolean isDuplicate(MemHandle handle, String key) {
         byte[] data = manager.getRecord(handle);
-        String check = data.toString();
+        String check = new String(data); // correct byte-to-string conversion
         return check.equals(key);
     }
 }
