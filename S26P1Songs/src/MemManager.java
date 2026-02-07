@@ -27,7 +27,7 @@ public class MemManager implements MemoryManager{
         poolSize = startSize; 
         memPool = new byte[startSize];
         freePos = 0;
-        freeList = new FreeBlock(0, startSize);
+        freeList = new FreeBlock(0, startSize); //Points to first free block
     } 
     
     
@@ -35,9 +35,6 @@ public class MemManager implements MemoryManager{
         return poolSize;
     }
     
-    public int getNumFreeBlocks() {
-        
-    }
     
     
     
@@ -52,37 +49,94 @@ public class MemManager implements MemoryManager{
    * @return
    */
     public MemHandle insert(byte[] info) {
-        FreeBlock prev = null;
+      //The previous free block is the last block that was 
+        // free and is now allocated. The current block is
+        // the next free block we will allocate in this method
+        FreeBlock prev = null; 
         FreeBlock curr = freeList;
         
+        //Until the current block is null, loop through the list of free
+        // blocks
         while(curr != null) {
             if(curr.size >= info.length) {
+                int allocIndex = curr.start;
                 
+                for(int i = 0; i < info.length; i++) {
+                    memPool[allocIndex + i] = info[i];
+                }
+            
+            
+                //If the given array of bytes is exactly the same size 
+                // as the free block, then no splitting of blocks occurs
+                if(curr.size == info.length) {
+                    //If we allocated the first block, then set the beginning
+                    // of the free block list to the next block 
+                    // previous block to allocate
+                    if(prev == null) {
+                        freeList = curr.next;
+                    }
+                    //If we did not allocate the first block, then ensure 
+                    // the previous block does not reference the block we 
+                    // allocated that is not longer free
+                    else {
+                        prev.next = curr.next;
+                    }
+                }
+                //If the block is bigger than the given array of bytes, 
+                // then split the block to create another free block 
+                else {
+                    //the start of the next free block should be the end 
+                    // of the current block and the size of the next free
+                    // block should be the size of this block minus the 
+                    // space allocated
+                    curr.start += info.length;
+                    curr.size -= info.length;
+                }
+            
+                return new MemHandle(allocIndex, info.length);
             }
+            
+            prev = curr;
+            curr = curr.next;
         }
         
-        if(freePos + info.length > poolSize) {
-            resize();
-        }
-        
-        int offset = freePos;
-        for(int i = 0; i < info.length; i++) {
-            memPool[freePos + i] = info[i];
-        }
-        freePos += info.length;
-        //poolSize++;
-        
-        return new MemHandle(offset, info.length);
+        return null;
     }
     
     /**
      * Release the space associated with a record when no longer
      *  needed and return it to the memory manager
+     *  
+     *  Implements buddy method when there are adjacent free blocks
      * 
      * @param h
      */
     public void release(MemHandle h) {
-        //implement this
+        //Create a new free block that will represent the block being freed
+        FreeBlock releasedBlock = new FreeBlock(h.getOffset(), h.getLength());
+        
+        //If there are no free blocks in the freeBlock list, then add this
+        // released block to the front of the list
+        //Or if there is already a free block adjacent to the one being added
+        // then when the free blocks are merged, the start of the merged block 
+        // corresponds with the lower start address
+        if(freeList == null || releasedBlock.start < freeList.start) {
+            releasedBlock.next = freeList;
+            freeList = releasedBlock;
+        } 
+        //
+        else {
+            FreeBlock curr = freeList;
+            while(curr.next != null && curr.next.start < releasedBlock.start) {
+                curr = curr.next;
+            }
+            releasedBlock.next = curr.next; 
+            curr.next = releasedBlock;
+        }
+        
+        //If adjacent free blocks, merge them using buddy method
+        buddy();
+        
     }
     
     /**
@@ -101,6 +155,7 @@ public class MemManager implements MemoryManager{
         return copy;
     }
     
+    
     /**
      * If the memory pool is full, double the size of the array
      * NEED TO FIX HOW THIS IS IMPLEMENTED!!!!!
@@ -113,5 +168,23 @@ public class MemManager implements MemoryManager{
             newPool[i] = memPool[i];
         }   
         memPool = newPool;        
+    }
+    
+    
+    /*
+     * 
+     */
+    public void buddy() {
+        FreeBlock curr = freeList;
+        
+        while(curr != null && curr.next != null) {
+            if(curr.start + curr.size == curr.next.start) {
+                curr.size += curr.next.size;
+                curr.next = curr.next.next;
+            }
+            else {
+                curr = curr.next;
+            }
+        }
     }
 }

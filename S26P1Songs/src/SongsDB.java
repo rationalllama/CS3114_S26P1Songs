@@ -10,11 +10,11 @@ import java.io.IOException;
 public class SongsDB implements Songs
 {
 
-    private MemManager manager;
-    private Hash artists;
-    private Hash songs;
-    private int initManagerSize;
-    private int initHashSize;
+    private MemManager manager; //Manager that allocates memory for the HT's
+    private Hash artists; //Hash table of artists
+    private Hash songs; //Hash table of songs
+    private int initManagerSize; //The initial size of the manager - for reinitialize
+    private int initHashSize; //The initial size of hash tables - for reinitialize
     
     
     // ----------------------------------------------------------
@@ -107,8 +107,15 @@ public class SongsDB implements Songs
         
         //After bypassing improper insert cases, proceed to insert the
         // artistString to the artists HT and the songString to songsHT
-        artists.insert(artistString);
-        songs.insert(songString);
+        boolean insertedArtist = artists.insert(artistString);
+        boolean insertedSong = songs.insert(songString);
+        if(insertedArtist) {
+            return "";
+        }
+        if(insertedSong) {
+            return "";
+        }
+        
         return "";
     }
 
@@ -198,9 +205,14 @@ public class SongsDB implements Songs
             
             //print all the songs
         }
-        else {
+        else if(type.equals("artist")){
             if(artists.getSize() == 0) {
                 return "total artists: " + artists.getSize();
+            }
+        }
+        else {
+            if(manager.) {
+                
             }
         }
         

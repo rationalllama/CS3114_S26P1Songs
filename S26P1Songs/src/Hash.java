@@ -163,17 +163,34 @@ public class Hash
             }
         }
         
-    }
+    } 
     
     /**
-     * Search for the handle associated with a specified string
+     * Search for the handle associated with a specified string. Search follows the same
+     * ideology as insert, look through the handles in the memory manager until a
+     * duplicate is found. If no duplicate is found, then the key does not exist
      * 
      * @param key
      * @return
      */
     public MemHandle search(String key) {
+        //Find the initial home position of where the string corresponds to 
+        int pos = h(key, capacity);
+        int offset = 1;
         
+        //Loop through the handles until the corresponding handle is found
+        while(handles[pos] != null) {
+            
+            if(isDuplicate(handles[pos], key)) {
+                return handles[pos];
+            }
+            
+            //Follow the collision resolution method to determine the next index to look at
+            pos = (pos + offset*offset) % capacity;
+            offset++;
+        }
         
+        //If no duplicate is found in the handles, then the key does not exist
         return null;
     }
     
@@ -191,10 +208,20 @@ public class Hash
             //continue searching until null is found cuz could come across tombstone
             //after deleting the handle from the HT, then release the memory in
             //the manager as well
+        //Search the memory manager to determine if a handle corresponds to the given key
+        MemHandle thisHandle = search(key);
         
-        //if not found --> return false
-        //if found --> create tombstone over the key that was once there and return true
-        return false;
+        //If thisHandle is null, the handle did not exist and there is nothing to return
+        if(thisHandle == null) {
+            return false;
+        }
+        
+        //if found --> release the space in the memory pool associated with this handle
+        // and create tombstone over the key that was once there and return true
+        thisHandle.makeTombstone();
+        manager.release(thisHandle);
+        
+        return true;
     }
     
     //check for duplication method
