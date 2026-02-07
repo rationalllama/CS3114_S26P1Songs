@@ -41,7 +41,9 @@ public class Hash
         handles = new MemHandle[capacity];
     }
 
-    
+    public int getSize() {
+        return size;
+    }
     
     /**
      * Compute the hash function. Uses the "sfold" method from the OpenDSA
@@ -74,6 +76,7 @@ public class Hash
      * @param m
      *              The size of the hash table
      * @return true if insertion is successful and false if otherwise
+     * @throws IllegalArgumentException
      */
     public boolean insert(String key) throws IllegalArgumentException{
         //If the string to add is null, then throw an illegal argument exception
@@ -95,7 +98,7 @@ public class Hash
         int firstTombstone = -1;
         
         
-        while(handles[pos] != null) {
+        while(handles[pos] != null) { 
             if(handles[pos].isTombstone() && firstTombstone == -1) {
                 firstTombstone = pos;
             }
@@ -106,6 +109,10 @@ public class Hash
             offset++;
         }
         
+        if(firstTombstone != -1) {
+            pos = firstTombstone;
+        }
+        
         //convert string to array of bytes to insert to MemManager
         byte[] strBytes = key.getBytes();
         handles[pos] = manager.insert(strBytes);
@@ -114,11 +121,24 @@ public class Hash
     }
     
     
-    //find method
-//    public String search(Key k, Elem e) {
+    /**
+     * 
+     * @param handle
+     *          The handle in which the string we are looking for is in
+     * @return
+     *          The string that corresponds to the given handle
+     * @throws IllegalArgumentException
+     */
+    public String getString(MemHandle handle) throws IllegalArgumentException{
             //use get record from the memory manager to recover the string 
-//        return false;
-//    }
+        if(handle == null) {
+            throw new IllegalArgumentException("Data can't be null"); 
+        }
+        byte[] data = manager.getRecord(handle);
+        String str = new String(data);
+        
+        return str;
+    }
     
     /**
      * Resizes the hash table to double the size when the
@@ -128,15 +148,33 @@ public class Hash
      */
     public void resize() {
         //double the capacity of the hash table and create a new hash table of doubled size
+        int oldCapacity = capacity;
         capacity *= 2;
-        MemHandle[] newHandles = new MemHandle[this.capacity];
+        MemHandle[] oldHandles = handles;
+        handles = new MemHandle[capacity];
+        size = 0;
         
         //copy the old hash table over to the new one and set this hash table to the new hash table created
-        for(int i = 0; i < capacity/2; i++) {
-            newHandles[i] = handles[i];
+        for(int i = 0; i < oldCapacity; i++) {
+            if(oldHandles[i] != null && !oldHandles[i].isTombstone()) {
+                byte[] data = manager.getRecord(oldHandles[i]);
+                String s = new String(data);
+                insert(s);
+            }
         }
-        handles = newHandles;
         
+    }
+    
+    /**
+     * Search for the handle associated with a specified string
+     * 
+     * @param key
+     * @return
+     */
+    public MemHandle search(String key) {
+        
+        
+        return null;
     }
     
     //print method
@@ -148,9 +186,11 @@ public class Hash
      * 
      * @return true if successful deletion and false otherwise
      */
-    public boolean delete(String key) {
+    public boolean delete(String key) throws IllegalArgumentException{
         //search for the "key" or string to delete
             //continue searching until null is found cuz could come across tombstone
+            //after deleting the handle from the HT, then release the memory in
+            //the manager as well
         
         //if not found --> return false
         //if found --> create tombstone over the key that was once there and return true
@@ -160,7 +200,7 @@ public class Hash
     //check for duplication method
     public boolean isDuplicate(MemHandle handle, String key) {
         byte[] data = manager.getRecord(handle);
-        String check = data.toString();
+        String check = new String(data);
         return check.equals(key);
     }
 }
