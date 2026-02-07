@@ -53,7 +53,9 @@ public class Hash
         handles = new MemHandle[capacity];
     }
 
-    
+    public int getSize() {
+        return size;
+    }
     
     /**
      * Compute the hash function. Uses the "sfold" method from the OpenDSA
@@ -87,6 +89,7 @@ public class Hash
      * @param m
      *              The size of the hash table
      * @return true if insertion is successful and false if otherwise
+     * @throws IllegalArgumentException
      */
     public boolean insert(String key) throws IllegalArgumentException{
         //If the string to add is null, then throw an illegal argument exception
@@ -109,10 +112,16 @@ public class Hash
         int offset = 1;
         int firstTombstone = -1;
         
+<<<<<<< HEAD
         // this slot is occupied, so we need to check for duplicates and find the next open slot using quadratic probing
         while(handles[pos] != null) {
             // if we come across a tombstone, we want to save that index for possible insertion
             if(handles[pos].isTombstone()) {
+=======
+        
+        while(handles[pos] != null) { 
+            if(handles[pos].isTombstone() && firstTombstone == -1) {
+>>>>>>> 856203a2791cc76045ac67bdedc631da7d0aa472
                 firstTombstone = pos;
             }
             else if(isDuplicate(handles[pos],key)) { 
@@ -123,6 +132,7 @@ public class Hash
             offset++;
         }
         
+<<<<<<< HEAD
         // Use the tombstone if one was found; otherwise use the first empty slot.
         int insertPos = (firstTombstone != -1) ? firstTombstone : pos;
 
@@ -130,16 +140,38 @@ public class Hash
         byte[] bytes = key.getBytes();
         handles[insertPos] = manager.insert(bytes);
 
+=======
+        if(firstTombstone != -1) {
+            pos = firstTombstone;
+        }
+        
+        //convert string to array of bytes to insert to MemManager
+        byte[] strBytes = key.getBytes();
+        handles[pos] = manager.insert(strBytes);
+>>>>>>> 856203a2791cc76045ac67bdedc631da7d0aa472
         size++;
         return true;
     }
     
     
-    //find method
-//    public String search(Key k, Elem e) {
+    /**
+     * 
+     * @param handle
+     *          The handle in which the string we are looking for is in
+     * @return
+     *          The string that corresponds to the given handle
+     * @throws IllegalArgumentException
+     */
+    public String getString(MemHandle handle) throws IllegalArgumentException{
             //use get record from the memory manager to recover the string 
-//        return false;
-//    }
+        if(handle == null) {
+            throw new IllegalArgumentException("Data can't be null"); 
+        }
+        byte[] data = manager.getRecord(handle);
+        String str = new String(data);
+        
+        return str;
+    }
     
     /**
      * Resizes the hash table by doubling its capacity.
@@ -149,6 +181,7 @@ public class Hash
      * Resizing at half-full keeps performance predictable, prevents
      * infinite loops during probing.
      */
+<<<<<<< HEAD
     private void resize() {
         int oldCapacity = capacity;
         capacity *= 2;
@@ -161,13 +194,42 @@ public class Hash
         for (int i = 0; i < oldCapacity; i++) {
             // Only reinsert if it's not null and not a tombstone
             if (oldHandles[i] != null && !oldHandles[i].isTombstone()) {
+=======
+    public void resize() {
+        //double the capacity of the hash table and create a new hash table of doubled size
+        int oldCapacity = capacity;
+        capacity *= 2;
+        MemHandle[] oldHandles = handles;
+        handles = new MemHandle[capacity];
+        size = 0;
+        
+        //copy the old hash table over to the new one and set this hash table to the new hash table created
+        for(int i = 0; i < oldCapacity; i++) {
+            if(oldHandles[i] != null && !oldHandles[i].isTombstone()) {
+>>>>>>> 856203a2791cc76045ac67bdedc631da7d0aa472
                 byte[] data = manager.getRecord(oldHandles[i]);
                 String s = new String(data);
                 insert(s);
             }
         }
+<<<<<<< HEAD
+=======
+        
+>>>>>>> 856203a2791cc76045ac67bdedc631da7d0aa472
     }
 
+    
+    /**
+     * Search for the handle associated with a specified string
+     * 
+     * @param key
+     * @return
+     */
+    public MemHandle search(String key) {
+        
+        
+        return null;
+    }
     
     //print method
     
@@ -178,9 +240,11 @@ public class Hash
      * 
      * @return true if successful deletion and false otherwise
      */
-    public boolean delete(String key) {
+    public boolean delete(String key) throws IllegalArgumentException{
         //search for the "key" or string to delete
             //continue searching until null is found cuz could come across tombstone
+            //after deleting the handle from the HT, then release the memory in
+            //the manager as well
         
         //if not found --> return false
         //if found --> create tombstone over the key that was once there and return true
@@ -196,7 +260,11 @@ public class Hash
      */
     private boolean isDuplicate(MemHandle handle, String key) {
         byte[] data = manager.getRecord(handle);
+<<<<<<< HEAD
         String check = new String(data); // correct byte-to-string conversion
+=======
+        String check = new String(data);
+>>>>>>> 856203a2791cc76045ac67bdedc631da7d0aa472
         return check.equals(key);
     }
 }
